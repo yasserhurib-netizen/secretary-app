@@ -1,0 +1,824 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0e6a69">
+<title>سكرتيرتي</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Reem+Kufi:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout: a paper-like day sheet. One filled "next up" panel on top, a quick-add bar, then the agenda as ruled rows grouped by day. */
+:root {
+  --bg: #eef2f1;
+  --surface: #ffffff;
+  --ink: #12282a;
+  --muted: #5d7476;
+  --line: #d3dedd;
+  --accent: #0e6a69;
+  --on-accent: #ffffff;
+  --accent-soft: #d9ecea;
+  --alert: #b8420f;
+  --alert-soft: #fde6d9;
+  --lecture: #0e6a69;
+  --meeting: #4a4fa3;
+  --visit: #a5611a;
+  --font-display: "Reem Kufi", "Segoe UI", Tahoma, sans-serif;
+  --font-body: "IBM Plex Sans Arabic", "Segoe UI", Tahoma, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1a1c; --surface: #152427; --ink: #e5efee; --muted: #93aaa9; --line: #26393b;
+    --accent: #46c2b6; --on-accent: #06201e; --accent-soft: #1b3a3b; --alert: #ff9a6a; --alert-soft: #3a2218;
+    --lecture: #46c2b6; --meeting: #9ea3ff; --visit: #e9b06a; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1a1c; --surface: #152427; --ink: #e5efee; --muted: #93aaa9; --line: #26393b;
+  --accent: #46c2b6; --on-accent: #06201e; --accent-soft: #1b3a3b; --alert: #ff9a6a; --alert-soft: #3a2218;
+  --lecture: #46c2b6; --meeting: #9ea3ff; --visit: #e9b06a; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+[hidden] { display: none !important; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-size: 16px; line-height: 1.6;
+  padding-block: calc(20px + env(safe-area-inset-top, 0px)) calc(56px + env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 760px; margin-inline: auto; display: flex; flex-direction: column; gap: 22px; }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* header */
+.top { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.brand h1 { font-family: var(--font-display); font-weight: 700; font-size: 30px; line-height: 1.1; margin: 0; letter-spacing: 0; }
+.brand p { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+.clock { font-family: var(--font-display); font-size: 34px; font-weight: 600; line-height: 1; direction: ltr; }
+.clock small { font-size: 15px; color: var(--muted); margin-inline-start: 6px; font-family: var(--font-body); }
+
+/* alerts overlay */
+#alerts { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; display: flex; flex-direction: column; gap: 10px; }
+.alert {
+  background: var(--alert); color: #fff; border-radius: 14px; padding: 16px 18px;
+  display: grid; gap: 10px; box-shadow: 0 8px 28px rgb(0 0 0 / 0.25);
+}
+:root[data-theme="dark"] .alert { color: #1a0b03; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .alert { color: #1a0b03; } }
+.alert .kicker { font-size: 13px; font-weight: 600; letter-spacing: .04em; display: flex; align-items: center; gap: 8px; }
+.alert .dot { width: 10px; height: 10px; border-radius: 50%; background: currentColor; animation: pulse 1.2s ease-in-out infinite; }
+.alert h2 { margin: 0; font-family: var(--font-display); font-size: 26px; line-height: 1.25; text-wrap: balance; }
+.alert .when { font-size: 17px; }
+.alert .row { display: flex; gap: 8px; flex-wrap: wrap; }
+.alert button { border: 2px solid currentColor; background: transparent; border-radius: 10px; padding: 8px 16px; font-weight: 600; }
+.alert button.solid { background: #fff; color: #7a2a06; border-color: #fff; }
+:root[data-theme="dark"] .alert button.solid { background: #1a0b03; color: #ffd9c6; border-color: #1a0b03; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .alert button.solid { background: #1a0b03; color: #ffd9c6; border-color: #1a0b03; } }
+@keyframes pulse { 50% { opacity: .25; } }
+@media (prefers-reduced-motion: reduce) { .alert .dot { animation: none; } }
+
+/* next-up panel */
+.next { background: var(--accent); color: var(--on-accent); border-radius: 18px; padding: 20px 22px; display: grid; gap: 14px; }
+.next .label { font-size: 13px; letter-spacing: .06em; opacity: .85; }
+.next h2 { margin: 0; font-family: var(--font-display); font-size: 30px; line-height: 1.25; text-wrap: balance; overflow-wrap: anywhere; }
+.next .meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px; }
+.next .at { font-family: var(--font-display); font-size: 40px; font-weight: 600; line-height: 1; }
+.next .in { font-size: 18px; font-weight: 500; }
+.next .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.next.empty { background: var(--surface); color: var(--ink); border: 1px dashed var(--line); }
+.next.empty h2 { font-size: 22px; }
+.btn {
+  display: inline-flex; align-items: center; gap: 8px; border-radius: 10px; padding: 9px 16px;
+  border: 1.5px solid currentColor; background: transparent; font-weight: 500;
+}
+.next .btn { color: var(--on-accent); }
+.btn.fill { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.btn svg, .icon-btn svg { width: 18px; height: 18px; flex: none; }
+
+/* enable bar */
+.enable {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  background: var(--alert-soft); border-radius: 12px; padding: 12px 16px; font-size: 15px;
+}
+.enable.on { background: var(--accent-soft); }
+.enable .state { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.led { width: 10px; height: 10px; border-radius: 50%; background: var(--alert); flex: none; }
+.enable.on .led { background: var(--accent); }
+
+/* quick add */
+.add { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+.wrap > *, .add > * { min-width: 0; }
+.add .bar { display: flex; gap: 8px; align-items: stretch; }
+.add input[type=text] {
+  flex: 1; min-width: 0; background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px;
+  padding: 12px 14px; font-size: 17px;
+}
+.add input[type=text]::placeholder { color: var(--muted); }
+.icon-btn {
+  width: 48px; flex: none; display: grid; place-items: center; border-radius: 12px;
+  border: 1.5px solid var(--line); background: var(--surface); color: var(--accent);
+}
+.icon-btn.rec { background: var(--alert); border-color: var(--alert); color: #fff; animation: pulse 1.2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .icon-btn.rec { animation: none; } }
+.hint { color: var(--muted); font-size: 14px; min-height: 22px; }
+.hint.err { color: var(--alert); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 4px 12px;
+  font-size: 14px; color: var(--ink);
+}
+details.manual { border-top: 1px solid var(--line); padding-top: 8px; }
+details.manual summary { cursor: pointer; color: var(--accent); font-weight: 500; padding: 4px 0; }
+.form { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; padding-top: 10px; }
+.form label { display: grid; gap: 4px; font-size: 14px; color: var(--muted); min-width: 0; }
+.form input, .form select {
+  background: var(--surface); border: 1.5px solid var(--line); border-radius: 10px; padding: 9px 10px; color: var(--ink); min-width: 0; width: 100%;
+}
+.form .wide { grid-column: 1 / -1; }
+.form .check { display: flex; align-items: center; gap: 8px; color: var(--ink); }
+.form .check input { width: 18px; height: 18px; }
+.form .row { grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* agenda */
+.agenda h3 { font-family: var(--font-display); font-size: 18px; margin: 18px 0 0; padding-bottom: 6px; border-bottom: 2px solid var(--ink); display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.agenda h3 span { font-family: var(--font-body); font-size: 13px; font-weight: 400; color: var(--muted); }
+.item { display: grid; grid-template-columns: 78px 1fr auto; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.item.past { opacity: .5; }
+.item .t { font-family: var(--font-display); font-size: 22px; font-weight: 600; line-height: 1.1; direction: ltr; text-align: end; }
+.item .t small { display: block; font-family: var(--font-body); font-size: 12px; color: var(--muted); font-weight: 400; }
+.item .main { min-width: 0; }
+.item .title { font-weight: 600; overflow-wrap: anywhere; }
+.item .sub { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; font-size: 13px; color: var(--muted); }
+.tag { font-weight: 600; font-size: 12px; padding: 1px 9px; border-radius: 999px; border: 1.5px solid currentColor; }
+.tag.lecture { color: var(--lecture); } .tag.meeting { color: var(--meeting); } .tag.visit { color: var(--visit); }
+.item .tools { display: flex; gap: 2px; }
+.tool { border: 0; background: transparent; padding: 8px; border-radius: 8px; color: var(--muted); display: grid; place-items: center; }
+.tool:hover { background: var(--accent-soft); color: var(--ink); }
+.tool svg { width: 18px; height: 18px; }
+.empty-state { border: 1px dashed var(--line); border-radius: 14px; padding: 22px; display: grid; gap: 10px; background: var(--surface); }
+.empty-state h3 { all: unset; font-family: var(--font-display); font-size: 20px; font-weight: 600; }
+.empty-state p { margin: 0; color: var(--muted); }
+
+/* footer */
+.foot { display: grid; gap: 10px; font-size: 14px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 14px; }
+.foot .line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.foot select { background: var(--surface); border: 1.5px solid var(--line); border-radius: 8px; padding: 4px 8px; color: var(--ink); }
+.foot .link { background: none; border: 0; color: var(--accent); text-decoration: underline; padding: 0; }
+
+#toast {
+  position: fixed; inset-inline: 0; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); display: grid; place-items: center; pointer-events: none; z-index: 30;
+}
+#toast div { background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 12px; display: flex; gap: 14px; align-items: center; pointer-events: auto; max-width: min(92vw, 520px); }
+#toast button { background: none; border: 0; color: inherit; text-decoration: underline; font-weight: 600; padding: 0; }
+
+@media (max-width: 480px) {
+  .item { grid-template-columns: 64px 1fr; }
+  .item .tools { grid-column: 1 / -1; justify-content: flex-start; }
+  .next h2 { font-size: 25px; } .next .at { font-size: 34px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap" dir="rtl" lang="ar">
+  <header class="top">
+    <div class="brand">
+      <h1>سكرتيرتي</h1>
+      <p id="today-label" class="num"></p>
+    </div>
+    <div class="clock num" id="clock" aria-live="off"></div>
+  </header>
+
+  <div id="alerts" role="alert" aria-live="assertive"></div>
+
+  <div id="enable" class="enable">
+    <div class="state"><span class="led"></span><span id="enable-text">التنبيهات الصوتية غير مفعّلة. فعّلها ليصلك التنبيه قبل كل موعد.</span></div>
+    <button class="btn fill" id="enable-btn" type="button">فعّل التنبيهات</button>
+  </div>
+
+  <section id="next" class="next" aria-label="الموعد القادم"></section>
+
+  <section class="add" aria-label="إضافة موعد">
+    <div class="bar">
+      <input type="text" id="quick" inputmode="text" autocomplete="off" placeholder="اكتب أو قُل: محاضرة البرمجة غدًا الساعة 5 مساءً" aria-label="موعد جديد">
+      <button class="icon-btn" id="mic" type="button" aria-label="إدخال صوتي" title="إدخال صوتي">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+      </button>
+      <button class="btn fill" id="quick-add" type="button">أضف</button>
+    </div>
+    <div class="hint" id="hint">اذكر الموعد والوقت. لتكرار المحاضرة كل أسبوع قل: كل أحد.</div>
+    <div class="chips" id="examples"></div>
+    <details class="manual" id="manual">
+      <summary>إضافة أو تعديل يدويًا</summary>
+      <form class="form" id="form" autocomplete="off">
+        <label class="wide" for="f-title">العنوان<input id="f-title" type="text" required placeholder="مثال: محاضرة مقدمة في البرمجة"></label>
+        <label for="f-type">النوع
+          <select id="f-type"><option value="lecture">محاضرة</option><option value="visit">موعد</option><option value="meeting">اجتماع</option></select>
+        </label>
+        <label for="f-date">التاريخ<input id="f-date" type="date" required></label>
+        <label for="f-time">الوقت<input id="f-time" type="time" required></label>
+        <label for="f-lead">التنبيه قبل
+          <select id="f-lead"><option value="5">5 دقائق</option><option value="10" selected>10 دقائق</option><option value="15">15 دقيقة</option><option value="30">30 دقيقة</option><option value="60">ساعة</option></select>
+        </label>
+        <label class="check wide" for="f-repeat"><input id="f-repeat" type="checkbox"> يتكرر كل أسبوع في اليوم نفسه (مناسب للمحاضرات)</label>
+        <div class="row">
+          <button class="btn fill" type="submit" id="f-save">حفظ</button>
+          <button class="btn" type="button" id="f-cancel">إلغاء</button>
+        </div>
+      </form>
+    </details>
+  </section>
+
+  <section class="agenda" id="agenda" aria-label="جدول المواعيد"></section>
+
+  <footer class="foot">
+    <div class="line">
+      <label for="lead-default">التنبيه المسبق الافتراضي:</label>
+      <select id="lead-default"><option value="5">5 دقائق</option><option value="10">10 دقائق</option><option value="15">15 دقيقة</option><option value="30">30 دقيقة</option></select>
+      <button class="link" id="test-alert" type="button">تجربة التنبيه والصوت</button>
+    </div>
+    <div class="line"><span id="sync-note"></span></div>
+    <div class="line"><span id="voice-note"></span></div>
+    <div>التنبيهات تعمل ما دامت هذه الصفحة مفتوحة في المتصفح. على الهاتف أبقِ الشاشة مضاءة أو الصفحة في المقدمة.</div>
+  </footer>
+</div>
+<div id="toast" aria-live="polite"></div>
+
+<script>
+document.documentElement.dir = 'rtl';
+document.documentElement.lang = 'ar';
+
+/* ============ parser (pure functions) ============ */
+//<parser>
+var DAY_NAMES = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+var DAY_KEYS = { 'احد':0, 'اثنين':1, 'ثلاثاء':2, 'اربعاء':3, 'خميس':4, 'جمعه':5, 'سبت':6 };
+var HOUR_WORDS = [
+  ['الحاديه عشره',11],['الثانيه عشره',12],['احد عشر',11],['اثنا عشر',12],['اثني عشر',12],
+  ['الواحده',1],['الثانيه',2],['الثالثه',3],['الرابعه',4],['الخامسه',5],['السادسه',6],['السابعه',7],['الثامنه',8],['التاسعه',9],['العاشره',10],
+  ['واحده',1],['اثنتين',2],['اثنين',2],['ثلاثه',3],['اربعه',4],['خمسه',5],['سته',6],['سبعه',7],['ثمانيه',8],['تسعه',9],['عشره',10]
+];
+function normAr(s) {
+  return s.replace(/[أإآ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه')
+    .replace(/[٠-٩]/g, function (c) { return String(c.charCodeAt(0) - 1632); })
+    .replace(/[۰-۹]/g, function (c) { return String(c.charCodeAt(0) - 1776); });
+}
+function pad2(n) { return (n < 10 ? '0' : '') + n; }
+function isoDate(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
+function mkDate(iso, hhmm) {
+  var p = iso.split('-').map(Number), t = (hhmm || '00:00').split(':').map(Number);
+  return new Date(p[0], p[1] - 1, p[2], t[0], t[1], 0, 0);
+}
+function addDays(d, n) { var x = new Date(d.getFullYear(), d.getMonth(), d.getDate() + n); return x; }
+function parseQuick(text, now) {
+  var s = String(text || '').replace(/[ً-ْـ]/g, '').replace(/\s+/g, ' ').trim();
+  s = s.replace(/[٠-٩]/g, function (c) { return String(c.charCodeAt(0) - 1632); }).replace(/[۰-۹]/g, function (c) { return String(c.charCodeAt(0) - 1776); });
+  var n = normAr(s);
+  function bnd(src) { return new RegExp('(?:^|\\s)(?:' + src + ')(?=\\s|$|[،,.:؟?])'); }
+  function cut(re) {
+    var m = re.exec(n);
+    if (!m) return null;
+    var len = m[0].length;
+    s = s.slice(0, m.index) + ' ' + s.slice(m.index + len);
+    n = n.slice(0, m.index) + ' ' + n.slice(m.index + len);
+    return m;
+  }
+  var DAYS = '(?:ال)?(?<dn>احد|اثنين|ثلاثاء|اربعاء|خميس|جمعه|سبت)';
+  var today0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  var date = null, weekday = null, repeat = 'none', m;
+
+  m = cut(bnd('(?<y>\\d{4})-(?<mo>\\d{1,2})-(?<d>\\d{1,2})'));
+  if (m) date = new Date(+m.groups.y, +m.groups.mo - 1, +m.groups.d);
+  if (!date) {
+    m = cut(bnd('(?<d>\\d{1,2})/(?<mo>\\d{1,2})(?:/(?<y>\\d{2,4}))?'));
+    if (m) {
+      var yy = m.groups.y ? +m.groups.y : today0.getFullYear();
+      if (yy < 100) yy += 2000;
+      date = new Date(yy, +m.groups.mo - 1, +m.groups.d);
+      if (!m.groups.y && date < today0) date = new Date(yy + 1, +m.groups.mo - 1, +m.groups.d);
+    }
+  }
+  if (!date) { m = cut(bnd('بعد\\s+(?<k>\\d{1,3})\\s+(?:ايام|يوم)')); if (m) date = addDays(today0, +m.groups.k); }
+  if (!date) { m = cut(bnd('بعد\\s+غد(?:ا)?')); if (m) date = addDays(today0, 2); }
+  if (!date) { m = cut(bnd('غدا|غد|بكره|بكرا')); if (m) date = addDays(today0, 1); }
+  if (!date) { m = cut(bnd('اليوم|الليله|هالليله')); if (m) date = today0; }
+  m = cut(bnd('(?:كل\\s+(?:يوم\\s+)?' + DAYS + '|كل\\s+اسبوع|اسبوعيا)'));
+  if (m) { repeat = 'weekly'; if (m.groups.dn) weekday = DAY_KEYS[m.groups.dn]; }
+  if (weekday === null && !date) {
+    m = cut(bnd('(?:يوم\\s+)?' + DAYS));
+    if (m) weekday = DAY_KEYS[m.groups.dn];
+  }
+
+  var FR = '(?:\\s*(?<fr>و\\s*(?:ال)?(?:نصف|ربع|ثلث)|الا\\s*(?:ال)?(?:ربع|ثلث)))?';
+  var h24 = false, hour = null, minute = 0, word = HOUR_WORDS.map(function (w) { return w[0]; }).join('|');
+  m = cut(bnd('(?:الساعه|ساعه)\\s*(?<h>\\d{1,2})(?:[:.](?<mi>\\d{2}))?' + FR));
+  if (!m) m = cut(bnd('(?<h>\\d{1,2}):(?<mi>\\d{2})' + FR));
+  if (!m) m = cut(new RegExp('(?:^|\\s)(?<h>\\d{1,2})(?:[:.](?<mi>\\d{2}))?(?=\\s*(?:صباحا|مساء|ظهرا|عصرا|ليلا|ص|م)(?:\\s|$|[،,.]))' + FR.replace('(?<fr>', '(?<fr>')));
+  if (!m) {
+    m = cut(bnd('(?:الساعه|ساعه)\\s*(?<hw>' + word + ')' + FR));
+    if (m) { for (var i = 0; i < HOUR_WORDS.length; i++) if (HOUR_WORDS[i][0] === m.groups.hw) hour = HOUR_WORDS[i][1]; }
+  } else { hour = +m.groups.h; if (/^0\d$/.test(m.groups.h)) h24 = true; }
+  if (m) {
+    if (m.groups.mi) minute = +m.groups.mi;
+    var fr = m.groups.fr || '';
+    if (/نصف/.test(fr)) minute = 30;
+    else if (/ثلث/.test(fr)) { if (/^الا/.test(fr)) { hour -= 1; minute = 40; } else minute = 20; }
+    else if (/ربع/.test(fr)) { if (/^الا/.test(fr)) { hour -= 1; minute = 45; } else minute = 15; }
+  }
+  var period = null;
+  m = cut(bnd('(?<p>صباحا|مساء|ظهرا|عصرا|ليلا|فجرا|بعد الظهر|ص|م)'));
+  if (m) period = m.groups.p;
+
+  var lowerType = normAr(text);
+  var type = /محاضر/.test(lowerType) ? 'lecture' : /اجتماع/.test(lowerType) ? 'meeting' : 'visit';
+
+  if (hour === null) return { error: 'time' };
+  if (hour < 0) hour += 12;
+  if (hour > 24 || minute > 59) return { error: 'time' };
+  var guessed = false;
+  if (period) {
+    if (/مساء|عصرا|بعد الظهر/.test(period) || period === 'م') { if (hour < 12) hour += 12; }
+    else if (/ليلا/.test(period)) { if (hour === 12) hour = 0; else if (hour >= 5 && hour < 12) hour += 12; }
+    else if (/ظهرا/.test(period)) { if (hour < 6) hour += 12; }
+    else { if (hour === 12) hour = 0; }
+  } else if (hour >= 1 && hour <= 6 && !h24) { hour += 12; guessed = true; }
+  hour = hour % 24;
+  var hhmm = pad2(hour) + ':' + pad2(minute);
+
+  var startToday = new Date(today0.getFullYear(), today0.getMonth(), today0.getDate(), hour, minute);
+  if (weekday !== null) {
+    var diff = (weekday - today0.getDay() + 7) % 7;
+    if (diff === 0 && startToday <= now) diff = repeat === 'weekly' ? 0 : 7;
+    date = addDays(today0, diff);
+  } else if (repeat === 'weekly' && !date) {
+    date = startToday > now ? today0 : addDays(today0, 1);
+  } else if (!date) {
+    date = startToday > now ? today0 : addDays(today0, 1);
+  }
+
+  var STOP = ['في','علي','عند','الساعه','ساعه','يوم','ذكرني','ضيف','اضف','اضافه','سجل','لي','من','الي','ان','ب','و','ال'];
+  var toks = s.replace(/[،,؟?]/g, ' ').split(' ').filter(Boolean);
+  function fixTok(t) { return /^ب(موعد|محاضر|اجتماع)/.test(normAr(t)) ? t.slice(1) : t; }
+  var reminded = false;
+  while (toks.length && STOP.indexOf(normAr(toks[0])) >= 0) { if (normAr(toks[0]) === 'ذكرني') reminded = true; toks.shift(); }
+  while (toks.length && STOP.indexOf(normAr(toks[toks.length - 1])) >= 0) toks.pop();
+  if (toks.length) toks[0] = fixTok(toks[0]);
+  if (reminded && toks.length && /^ب.{3,}/.test(toks[0])) toks[0] = toks[0].slice(1);
+  var title = toks.join(' ').trim();
+  if (!title) title = type === 'lecture' ? 'محاضرة' : type === 'meeting' ? 'اجتماع' : 'موعد';
+  return { title: title, type: type, date: isoDate(date), time: hhmm, repeat: repeat, guessed: guessed && !period };
+}
+//</parser>
+
+/* ============ app ============ */
+var LS = { items: 'secretary.items.v1', fired: 'secretary.fired.v1', lead: 'secretary.lead.v1' };
+var TYPE_LABEL = { lecture: 'محاضرة', visit: 'موعد', meeting: 'اجتماع' };
+var $ = function (id) { return document.getElementById(id); };
+function lsGet(k, d) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }
+function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+function esc(t) { return String(t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+
+var items = lsGet(LS.items, []);
+var fired = lsGet(LS.fired, {});
+var defaultLead = +lsGet(LS.lead, 10) || 10;
+var active = false;            // sound unlocked by a tap
+var alerts = [];               // visible alerts
+var editingId = null;
+
+var fmtDay = new Intl.DateTimeFormat('ar-u-nu-latn', { weekday: 'long', day: 'numeric', month: 'long' });
+var fmtLong = new Intl.DateTimeFormat('ar-u-nu-latn', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+function uid() { return 'a' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+function fmtTime(hhmm) {
+  var p = hhmm.split(':').map(Number), h = p[0], m = p[1], suf = h < 12 ? 'ص' : 'م';
+  var h12 = h % 12 === 0 ? 12 : h % 12;
+  return h12 + ':' + pad2(m) + ' ' + suf;
+}
+var ORD = ['الثانية عشرة','الواحدة','الثانية','الثالثة','الرابعة','الخامسة','السادسة','السابعة','الثامنة','التاسعة','العاشرة','الحادية عشرة'];
+function speechTime(hhmm) {
+  var p = hhmm.split(':').map(Number), h = p[0], m = p[1];
+  var per = h === 0 ? 'ليلًا' : h < 12 ? 'صباحًا' : h < 15 ? 'ظهرًا' : h < 18 ? 'عصرًا' : h < 21 ? 'مساءً' : 'ليلًا';
+  var hh = h, extra = '';
+  if (m === 45) { hh = (h + 1) % 24; extra = ' إلا ربعًا'; }
+  else if (m === 30) extra = ' والنصف';
+  else if (m === 15) extra = ' والربع';
+  else if (m > 0) extra = ' و ' + m + ' دقيقة';
+  if (h === 12 && m === 0) return 'الثانية عشرة ظهرًا';
+  if (h === 0 && m === 0) return 'الثانية عشرة منتصف الليل';
+  var per2 = hh === 0 ? 'ليلًا' : hh < 12 ? 'صباحًا' : hh < 15 ? 'ظهرًا' : hh < 18 ? 'عصرًا' : hh < 21 ? 'مساءً' : 'ليلًا';
+  return 'الساعة ' + ORD[hh % 12] + extra + ' ' + (m === 45 ? per2 : per);
+}
+function minutesWord(n) { return n === 1 ? 'دقيقة واحدة' : n === 2 ? 'دقيقتين' : n >= 3 && n <= 10 ? n + ' دقائق' : n + ' دقيقة'; }
+function spokenTitle(it) {
+  var w = TYPE_LABEL[it.type] || '';
+  return it.title.indexOf(w) >= 0 ? it.title : w + ' ' + it.title;
+}
+function until(ms) {
+  var mins = Math.max(0, Math.round(ms / 60000));
+  if (mins < 1) return 'الآن';
+  if (mins < 60) return 'بعد ' + mins + ' د';
+  var h = Math.floor(mins / 60), r = mins % 60;
+  if (h < 24) return 'بعد ' + h + ' س' + (r ? ' و ' + r + ' د' : '');
+  var d = Math.floor(h / 24);
+  return 'بعد ' + d + (d === 1 ? ' يوم' : ' أيام');
+}
+
+/* ---- occurrences ---- */
+function occurrences(from, to) {
+  var out = [], f0 = new Date(from.getFullYear(), from.getMonth(), from.getDate());
+  var total = Math.round((new Date(to.getFullYear(), to.getMonth(), to.getDate()) - f0) / 86400000);
+  items.forEach(function (it) {
+    var first = mkDate(it.date, '00:00');
+    if (it.repeat === 'weekly') {
+      for (var i = 0; i <= total; i++) {
+        var d = addDays(f0, i);
+        if (d >= first && d.getDay() === first.getDay()) out.push({ it: it, iso: isoDate(d), start: mkDate(isoDate(d), it.time) });
+      }
+    } else if (!it.done && first >= f0 && first <= to) {
+      out.push({ it: it, iso: it.date, start: mkDate(it.date, it.time) });
+    }
+  });
+  out.sort(function (a, b) { return a.start - b.start; });
+  return out;
+}
+
+/* ---- storage (phone memory) ---- */
+function save() { lsSet(LS.items, items); scheduleNative(); }
+function setSync() { $('sync-note').textContent = 'مواعيدك محفوظة على هاتفك وتبقى بعد إغلاق التطبيق.'; }
+function pruneOld() {
+  var cut = addDays(new Date(), -7), before = items.length;
+  items = items.filter(function (it) { return it.repeat === 'weekly' || mkDate(it.date, it.time) >= cut; });
+  var fk = Object.keys(fired), lim = Date.now() - 3 * 86400000;
+  fk.forEach(function (k) { if (fired[k] < lim) delete fired[k]; });
+  lsSet(LS.fired, fired);
+  if (items.length !== before) lsSet(LS.items, items);
+}
+
+/* ---- native bridge (Android) ---- */
+var CAP = window.Capacitor;
+var isNative = !!(CAP && CAP.isNativePlatform && CAP.isNativePlatform());
+function plug(name) { try { return (isNative && CAP.Plugins && CAP.Plugins[name]) || null; } catch (e) { return null; } }
+function nid(s) { var h = 7; for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return Math.abs(h) % 2147483000 + 1; }
+async function nativeInit(manual) {
+  var LN = plug('LocalNotifications');
+  if (!LN) return;
+  try {
+    var p = await LN.requestPermissions();
+    if (p.display !== 'granted') { active = false; renderEnable(); setHint('اسمح للتطبيق بالإشعارات من إعدادات الهاتف ليصلك التنبيه.', true); return; }
+    try { var ex = await LN.checkExactNotificationSetting(); if (ex && ex.exact_alarm && ex.exact_alarm !== 'granted') await LN.changeExactNotificationSetting(); } catch (e1) {}
+    await LN.createChannel({ id: 'appointments', name: 'المواعيد', description: 'تنبيهات المحاضرات والمواعيد', importance: 5, visibility: 1, vibration: true });
+    active = true; renderEnable();
+    await scheduleNative();
+    if (manual) speak('تم تفعيل التنبيهات. أنا جاهزة.');
+  } catch (e) { setHint('تعذّر تفعيل الإشعارات. افتح إعدادات التطبيق وفعّلها.', true); }
+}
+var scheduling = false, scheduleAgain = false;
+async function scheduleNative() {
+  var LN = plug('LocalNotifications');
+  if (!LN || !active) return;
+  if (scheduling) { scheduleAgain = true; return; }
+  scheduling = true;
+  try {
+    var pend = await LN.getPending();
+    if (pend && pend.notifications && pend.notifications.length) await LN.cancel({ notifications: pend.notifications.map(function (n) { return { id: n.id }; }) });
+    var now = new Date(), notes = [];
+    occurrences(now, addDays(now, 30)).forEach(function (o) {
+      var st = o.start.getTime(), lead = (o.it.lead || 10) * 60000, key = o.it.id + o.iso;
+      var pre = new Date(st - lead);
+      if (pre > now) notes.push({ id: nid(key + 'p'), title: spokenTitle(o.it), body: 'بعد ' + minutesWord(o.it.lead || 10) + ' · ' + fmtTime(o.it.time), schedule: { at: pre, allowWhileIdle: true }, channelId: 'appointments' });
+      if (o.start > now) notes.push({ id: nid(key + 'n'), title: 'حان الآن: ' + spokenTitle(o.it), body: fmtTime(o.it.time), schedule: { at: o.start, allowWhileIdle: true }, channelId: 'appointments' });
+    });
+    notes.sort(function (a, b) { return a.schedule.at - b.schedule.at; });
+    if (notes.length) await LN.schedule({ notifications: notes.slice(0, 200) });
+  } catch (e) {}
+  scheduling = false;
+  if (scheduleAgain) { scheduleAgain = false; scheduleNative(); }
+}
+
+/* ---- speech / sound ---- */
+var arVoice = null, audioCtx = null;
+function pickVoice() {
+  if (isNative) { $('voice-note').textContent = 'القراءة الصوتية تستخدم صوت هاتفك. إن كانت صامتة، ثبّت «خدمات الكلام من Google» ونزّل اللغة العربية من إعدادات الهاتف.'; return; }
+  if (!('speechSynthesis' in window)) return;
+  var vs = speechSynthesis.getVoices() || [];
+  arVoice = vs.find(function (v) { return /^ar/i.test(v.lang); }) || null;
+  $('voice-note').textContent = !('speechSynthesis' in window) ? 'هذا المتصفح لا يدعم القراءة الصوتية.'
+    : arVoice ? 'صوت القراءة: ' + arVoice.name
+    : 'لم أجد صوتًا عربيًا في جهازك. إن كان التنبيه صامتًا أو بلغة أخرى، ثبّت صوتًا عربيًا من إعدادات النظام (إمكانية الوصول، الكلام).';
+}
+function speak(text) {
+  var T = plug('TextToSpeech');
+  if (T) { try { T.speak({ text: text, lang: 'ar-SA', rate: 0.95, pitch: 1.0, volume: 1.0, category: 'playback' }); } catch (e) {} return; }
+  if (!('speechSynthesis' in window)) return;
+  try {
+    var u = new SpeechSynthesisUtterance(text);
+    u.lang = arVoice ? arVoice.lang : 'ar-SA';
+    if (arVoice) u.voice = arVoice;
+    u.rate = 0.95;
+    speechSynthesis.speak(u);
+  } catch (e) {}
+}
+function beep() {
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    [0, 0.28].forEach(function (off, i) {
+      var o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.type = 'sine'; o.frequency.value = i ? 988 : 784;
+      g.gain.setValueAtTime(0.0001, audioCtx.currentTime + off);
+      g.gain.exponentialRampToValueAtTime(0.35, audioCtx.currentTime + off + 0.03);
+      g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + off + 0.25);
+      o.connect(g); g.connect(audioCtx.destination); o.start(audioCtx.currentTime + off); o.stop(audioCtx.currentTime + off + 0.27);
+    });
+  } catch (e) {}
+}
+var wake = null;
+async function keepAwake() {
+  if (isNative) return;
+  try { if (navigator.wakeLock && document.visibilityState === 'visible') wake = await navigator.wakeLock.request('screen'); } catch (e) {}
+}
+document.addEventListener('visibilitychange', function () { if (isNative) { if (document.visibilityState === 'visible') scheduleNative(); } else if (active) keepAwake(); });
+
+function activate() {
+  if (isNative) { nativeInit(true); return; }
+  active = true;
+  beep();
+  speak('تم تفعيل التنبيهات. أنا جاهزة.');
+  keepAwake();
+  try { if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission(); } catch (e) {}
+  renderEnable();
+}
+function renderEnable() {
+  var box = $('enable');
+  box.classList.toggle('on', active);
+  $('enable-text').textContent = active ? (isNative ? 'التنبيهات تعمل حتى لو أُغلق التطبيق. سأنبّهك قبل كل موعد.' : 'التنبيهات الصوتية تعمل. سأنبّهك قبل كل موعد بالمدة المحددة.') : 'التنبيهات الصوتية غير مفعّلة. فعّلها ليصلك التنبيه قبل كل موعد.';
+  $('enable-btn').hidden = active;
+}
+
+/* ---- alerts ---- */
+function raise(occ, kind) {
+  var now = new Date(), mins = Math.max(1, Math.ceil((occ.start - now) / 60000));
+  var msg = kind === 'pre'
+    ? 'تنبيه. بعد ' + minutesWord(mins) + '، ' + spokenTitle(occ.it) + '، ' + speechTime(occ.it.time) + '.'
+    : 'حان الآن موعد ' + spokenTitle(occ.it) + '.';
+  var a = { id: occ.it.id + occ.iso + kind, occ: occ, kind: kind, msg: msg, repeats: 0, next: Date.now() + 60000 };
+  alerts.push(a);
+  beep(); speak(msg);
+  try { if (!isNative && 'Notification' in window && Notification.permission === 'granted') new Notification(occ.it.title, { body: kind === 'pre' ? 'بعد ' + mins + ' دقيقة، الساعة ' + fmtTime(occ.it.time) : 'حان الموعد الآن' }); } catch (e) {}
+  renderAlerts();
+}
+function renderAlerts() {
+  var box = $('alerts');
+  box.innerHTML = alerts.map(function (a) {
+    var left = a.occ.start - new Date();
+    return '<div class="alert" data-id="' + esc(a.id) + '"><div class="kicker"><span class="dot"></span>' + (a.kind === 'pre' ? 'تنبيه مسبق' : 'حان الموعد') + '</div>' +
+      '<h2>' + esc(spokenTitle(a.occ.it)) + '</h2>' +
+      '<div class="when num">' + fmtTime(a.occ.it.time) + ' · ' + (left > 0 ? until(left) : 'الآن') + '</div>' +
+      '<div class="row"><button class="solid" data-act="ok" type="button">تمام، فهمت</button><button data-act="again" type="button">أعد القراءة</button></div></div>';
+  }).join('');
+  document.title = alerts.length ? '🔔 ' + alerts[0].occ.it.title : 'سكرتيرتي الشخصية';
+}
+$('alerts').addEventListener('click', function (e) {
+  var b = e.target.closest('button'); if (!b) return;
+  var el = b.closest('.alert'), a = alerts.find(function (x) { return x.id === el.dataset.id; });
+  if (!a) return;
+  if (b.dataset.act === 'ok') { alerts = alerts.filter(function (x) { return x !== a; }); try { speechSynthesis.cancel(); } catch (e2) {} }
+  else speak(a.msg);
+  renderAlerts();
+});
+
+function tick() {
+  var now = new Date(), nowMs = now.getTime();
+  occurrences(addDays(now, -1), addDays(now, 1)).forEach(function (o) {
+    var lead = (o.it.lead || 10) * 60000, st = o.start.getTime();
+    var kPre = o.it.id + '|' + o.iso + '|pre', kNow = o.it.id + '|' + o.iso + '|now';
+    if (nowMs >= st - lead && nowMs < st && !fired[kPre]) { fired[kPre] = nowMs; lsSet(LS.fired, fired); if (active) raise(o, 'pre'); }
+    else if (nowMs >= st && nowMs < st + 300000 && !fired[kNow]) { fired[kNow] = nowMs; lsSet(LS.fired, fired); if (active) raise(o, 'now'); }
+  });
+  alerts.forEach(function (a) {
+    if (Date.now() >= a.next && a.repeats < 2) { a.repeats++; a.next = Date.now() + 60000; speak(a.msg); }
+  });
+  alerts = alerts.filter(function (a) { return nowMs < a.occ.start.getTime() + 600000; });
+}
+
+/* ---- rendering ---- */
+function nextOcc() {
+  var now = new Date();
+  var list = occurrences(now, addDays(now, 60));
+  return list.find(function (o) { return o.start > new Date(now.getTime() - 60000); }) || null;
+}
+function renderNext() {
+  var box = $('next'), o = nextOcc();
+  if (!o) {
+    box.className = 'next empty';
+    box.innerHTML = '<div class="label">الموعد القادم</div><h2>لا توجد مواعيد قادمة</h2><div>أضف محاضرة أو موعدًا بالكتابة أو بالصوت، وسأنبّهك قبله.</div>';
+    return;
+  }
+  box.className = 'next';
+  var left = o.start - new Date();
+  box.innerHTML = '<div class="label">الموعد القادم · ' + esc(TYPE_LABEL[o.it.type]) + '</div><h2>' + esc(o.it.title) + '</h2>' +
+    '<div class="meta num"><span class="at">' + fmtTime(o.it.time) + '</span><span class="in" id="next-in">' + until(left) + '</span><span>' + dayLabel(o.iso) + '</span></div>' +
+    '<div class="actions"><button class="btn" id="say-next" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4zM17 8a5 5 0 0 1 0 8"/></svg>اقرأ الموعد</button>' +
+    '<button class="btn" id="say-today" type="button">اقرأ جدول اليوم</button></div>';
+}
+function dayLabel(iso) {
+  var t = isoDate(new Date());
+  if (iso === t) return 'اليوم';
+  if (iso === isoDate(addDays(new Date(), 1))) return 'غدًا';
+  return fmtDay.format(mkDate(iso, '12:00'));
+}
+function renderAgenda() {
+  var now = new Date(), list = occurrences(addDays(now, 0), addDays(now, 14));
+  var box = $('agenda');
+  if (!items.length) {
+    box.innerHTML = '<div class="empty-state"><h3>جدولك فارغ</h3><p>أول خطوة: أضف محاضراتك الأسبوعية مرة واحدة، فتتكرر تلقائيًا وأنبّهك قبل كل واحدة. جرّب إحدى الصيغ أعلاه أو اضغط على الميكروفون.</p></div>';
+    return;
+  }
+  if (!list.length) { box.innerHTML = '<div class="empty-state"><h3>لا مواعيد في الأسبوعين القادمين</h3><p>مواعيدك السابقة محفوظة وتظهر عند وقتها.</p></div>'; return; }
+  var html = '', cur = '';
+  list.forEach(function (o) {
+    if (o.iso !== cur) {
+      cur = o.iso;
+      html += '<h3>' + dayLabel(cur) + '<span class="num">' + (cur === isoDate(now) || cur === isoDate(addDays(now, 1)) ? fmtDay.format(mkDate(cur, '12:00')) : '') + '</span></h3>';
+    }
+    var past = o.start < now;
+    html += '<div class="item' + (past ? ' past' : '') + '" data-id="' + esc(o.it.id) + '"><div class="t num">' + fmtTime(o.it.time).replace(' ', '<small>') + '</small></div>' +
+      '<div class="main"><div class="title">' + esc(o.it.title) + '</div><div class="sub"><span class="tag ' + o.it.type + '">' + TYPE_LABEL[o.it.type] + '</span>' +
+      (o.it.repeat === 'weekly' ? '<span>كل ' + DAY_NAMES[mkDate(o.it.date, '00:00').getDay()] + '</span>' : '') +
+      '<span class="num">تنبيه قبل ' + o.it.lead + ' د</span>' + (past ? '<span>انتهى</span>' : '') + '</div></div>' +
+      '<div class="tools"><button class="tool" data-act="edit" type="button" aria-label="تعديل"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4"/></svg></button>' +
+      '<button class="tool" data-act="del" type="button" aria-label="حذف"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button></div></div>';
+  });
+  box.innerHTML = html;
+}
+function renderAll() { renderNext(); renderAgenda(); renderEnable(); }
+function renderClock() {
+  var n = new Date();
+  $('clock').innerHTML = (n.getHours() % 12 || 12) + ':' + pad2(n.getMinutes()) + '<small>' + (n.getHours() < 12 ? 'ص' : 'م') + '</small>';
+  $('today-label').textContent = fmtLong.format(n);
+  var el = $('next-in'), o = nextOcc();
+  if (el && o) el.textContent = until(o.start - n);
+}
+
+/* ---- actions ---- */
+function toast(msg, undo) {
+  var t = $('toast');
+  t.innerHTML = '<div><span>' + esc(msg) + '</span>' + (undo ? '<button type="button" id="undo">تراجع</button>' : '') + '</div>';
+  var timer = setTimeout(function () { t.innerHTML = ''; }, 6000);
+  if (undo) $('undo').onclick = function () { clearTimeout(timer); t.innerHTML = ''; undo(); };
+}
+function addItem(p, say) {
+  var it = { id: uid(), title: p.title, type: p.type, date: p.date, time: p.time, repeat: p.repeat, lead: p.lead || defaultLead };
+  items.push(it); save(); renderAll();
+  var confirmMsg = 'تم تسجيل ' + spokenTitle(it) + '، ' + (it.repeat === 'weekly' ? 'كل ' + DAY_NAMES[mkDate(it.date, '00:00').getDay()] : dayLabel(it.date)) + '، ' + speechTime(it.time) + '.';
+  if (say) speak(confirmMsg);
+  toast('تمت الإضافة: ' + it.title + ' · ' + fmtTime(it.time), function () { items = items.filter(function (x) { return x.id !== it.id; }); save(); renderAll(); });
+}
+function setHint(t, err) { var h = $('hint'); h.textContent = t; h.classList.toggle('err', !!err); }
+function submitQuick(viaVoice) {
+  var v = $('quick').value.trim();
+  if (!v) { setHint('اكتب الموعد أولًا.', true); return; }
+  var p = parseQuick(v, new Date());
+  if (p.error) {
+    setHint('لم أفهم الوقت. اذكر الساعة مثل: الساعة 5 مساءً، أو 17:30.', true);
+    if (viaVoice) speak('لم أفهم الوقت. أعد المحاولة وقل الساعة.');
+    return;
+  }
+  var warn = p.guessed ? ' (فهمتها مساءً، عدّلها إن أردت صباحًا)' : '';
+  p.lead = defaultLead;
+  addItem(p, viaVoice || active);
+  $('quick').value = '';
+  setHint('أضفت: ' + p.title + ' · ' + dayLabel(p.date) + ' ' + fmtTime(p.time) + warn);
+}
+
+/* voice input */
+var rec = null;
+async function startVoice() {
+  var SRp = plug('SpeechRecognition');
+  if (!SRp) { startVoiceWeb(); return; }
+  try {
+    await SRp.requestPermissions();
+    var av = await SRp.available();
+    if (!av || !av.available) { setHint('خدمة التعرف على الكلام غير متوفرة. استخدم ميكروفون لوحة المفاتيح للإملاء.', true); $('quick').focus(); return; }
+    $('mic').classList.add('rec'); setHint('أسمعك... قل الموعد والوقت.');
+    var r = await SRp.start({ language: 'ar-SA', maxResults: 1, prompt: 'قل الموعد والوقت', popup: true, partialResults: false });
+    $('mic').classList.remove('rec');
+    var t = r && r.matches && r.matches[0];
+    if (t) { $('quick').value = t; submitQuick(true); } else setHint('لم أسمع شيئًا. جرّب مرة أخرى.', true);
+  } catch (e) {
+    $('mic').classList.remove('rec');
+    setHint('تعذّر الإدخال الصوتي. اسمح للتطبيق باستخدام الميكروفون من إعدادات الهاتف.', true);
+  }
+}
+function startVoiceWeb() {
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { setHint('هذا المتصفح لا يدعم الإدخال الصوتي. اضغط على الميكروفون في لوحة مفاتيح هاتفك للإملاء داخل الخانة.', true); $('quick').focus(); return; }
+  if (rec) { rec.stop(); return; }
+  rec = new SR(); rec.lang = 'ar-SA'; rec.interimResults = true; rec.maxAlternatives = 1;
+  var finalText = '';
+  rec.onstart = function () { $('mic').classList.add('rec'); setHint('أسمعك... قل الموعد والوقت.'); };
+  rec.onresult = function (e) {
+    var t = '';
+    for (var i = e.resultIndex; i < e.results.length; i++) { t += e.results[i][0].transcript; if (e.results[i].isFinal) finalText = t; }
+    $('quick').value = t;
+  };
+  rec.onerror = function (e) {
+    $('mic').classList.remove('rec'); rec = null;
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') setHint('هذه الصفحة لا تملك إذن الميكروفون هنا. اضغط على ميكروفون لوحة مفاتيح هاتفك للإملاء داخل الخانة، ثم اضغط أضف.', true);
+    else if (e.error === 'no-speech') setHint('لم أسمع شيئًا. جرّب مرة أخرى.', true);
+    else setHint('تعذّر الإدخال الصوتي (' + e.error + ').', true);
+  };
+  rec.onend = function () { $('mic').classList.remove('rec'); rec = null; if (finalText) submitQuick(true); };
+  try { rec.start(); } catch (e) { rec = null; }
+}
+
+/* reading the agenda aloud */
+function sayToday() {
+  var now = new Date(), end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59);
+  var left = occurrences(now, now).filter(function (o) { return o.start > now; });
+  if (!left.length) { speak('لا توجد لديك مواعيد متبقية اليوم.'); return; }
+  var parts = left.map(function (o) { return spokenTitle(o.it) + '، ' + speechTime(o.it.time); });
+  speak('لديك اليوم ' + (left.length === 1 ? 'موعد واحد' : left.length === 2 ? 'موعدان' : left.length + ' مواعيد') + '. ' + parts.join('. ثم ') + '.');
+}
+function sayNext() {
+  var o = nextOcc();
+  if (!o) { speak('لا توجد لديك مواعيد قادمة.'); return; }
+  speak('موعدك القادم ' + spokenTitle(o.it) + '، ' + dayLabel(o.iso) + '، ' + speechTime(o.it.time) + '.');
+}
+
+/* manual form */
+function openForm(it) {
+  editingId = it ? it.id : null;
+  $('manual').open = true;
+  $('f-title').value = it ? it.title : '';
+  $('f-type').value = it ? it.type : 'lecture';
+  $('f-date').value = it ? it.date : isoDate(new Date());
+  $('f-time').value = it ? it.time : '';
+  $('f-lead').value = String(it ? it.lead : defaultLead);
+  $('f-repeat').checked = it ? it.repeat === 'weekly' : false;
+  $('f-save').textContent = it ? 'حفظ التعديل' : 'حفظ';
+  $('manual').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+function closeForm() { editingId = null; $('form').reset(); $('f-lead').value = String(defaultLead); $('manual').open = false; $('f-save').textContent = 'حفظ'; }
+
+/* wiring */
+$('enable-btn').onclick = activate;
+$('mic').onclick = startVoice;
+$('quick-add').onclick = function () { submitQuick(false); };
+$('quick').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); submitQuick(false); } });
+$('next').addEventListener('click', function (e) {
+  if (e.target.closest('#say-next')) sayNext();
+  if (e.target.closest('#say-today')) sayToday();
+});
+$('agenda').addEventListener('click', function (e) {
+  var b = e.target.closest('button'); if (!b) return;
+  var id = b.closest('.item').dataset.id, it = items.find(function (x) { return x.id === id; });
+  if (!it) return;
+  if (b.dataset.act === 'edit') openForm(it);
+  if (b.dataset.act === 'del') {
+    var snapshot = items.slice();
+    items = items.filter(function (x) { return x.id !== id; }); save(); renderAll();
+    toast('حُذف: ' + it.title, function () { items = snapshot; save(); renderAll(); });
+  }
+});
+$('form').addEventListener('submit', function (e) {
+  e.preventDefault();
+  var data = { title: $('f-title').value.trim(), type: $('f-type').value, date: $('f-date').value, time: $('f-time').value, lead: +$('f-lead').value, repeat: $('f-repeat').checked ? 'weekly' : 'none' };
+  if (!data.title || !data.date || !data.time) return;
+  if (editingId) {
+    items = items.map(function (x) { return x.id === editingId ? Object.assign({}, x, data) : x; });
+    save(); renderAll(); toast('تم حفظ التعديل');
+  } else addItem(data, active);
+  closeForm();
+});
+$('f-cancel').onclick = closeForm;
+$('lead-default').value = String(defaultLead);
+$('f-lead').value = String(defaultLead);
+$('lead-default').onchange = function () { defaultLead = +this.value; lsSet(LS.lead, defaultLead); $('f-lead').value = String(defaultLead); toast('سأنبّهك قبل المواعيد الجديدة بـ ' + defaultLead + ' دقائق'); };
+$('test-alert').onclick = function () {
+  var fake = { id: 'test', title: 'تجربة التنبيه', type: 'visit', time: pad2(new Date().getHours()) + ':' + pad2(new Date().getMinutes()), lead: defaultLead };
+  var st = new Date(Date.now() + defaultLead * 60000);
+  fake.time = pad2(st.getHours()) + ':' + pad2(st.getMinutes());
+  if (!active) activate();
+  raise({ it: fake, iso: isoDate(st), start: st }, 'pre');
+};
+
+var EXAMPLES = ['محاضرة البرمجة كل أحد الساعة 10 صباحًا', 'موعد الطبيب غدًا الساعة 4:30 عصرًا', 'اجتماع المشروع بعد غد الساعة 11 صباحًا', 'ذكرني بتسليم الوظيفة يوم الخميس الساعة 8 مساءً'];
+$('examples').innerHTML = EXAMPLES.map(function (t) { return '<button type="button" class="chip">' + esc(t) + '</button>'; }).join('');
+$('examples').addEventListener('click', function (e) { var c = e.target.closest('.chip'); if (c) { $('quick').value = c.textContent; $('quick').focus(); } });
+
+if ('speechSynthesis' in window) { pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; } else pickVoice();
+pruneOld(); setSync(); renderAll(); renderClock();
+if (isNative) {
+  var fl = document.querySelector('.foot > div:last-child');
+  if (fl) fl.textContent = 'إن لم يصلك تنبيه والتطبيق مغلق: اسمح بالإشعارات والمنبّهات الدقيقة، وأوقف «توفير البطارية» لهذا التطبيق من إعدادات الهاتف.';
+  nativeInit(false);
+}
+setInterval(function () { renderClock(); tick(); if (alerts.length) renderAlerts(); }, 1000);
+setInterval(function () { renderNext(); renderAgenda(); }, 60000);
+</script>
+</body>
+</html>
