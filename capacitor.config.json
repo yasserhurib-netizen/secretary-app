@@ -1,0 +1,6 @@
+{
+  "appId": "com.yaser.secretary",
+  "appName": "سكرتيرتي",
+  "webDir": "www",
+  "android": { "allowMixedContent": false }
+}
